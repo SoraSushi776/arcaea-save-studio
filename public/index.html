@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Arcaea 存档工坊</title>
+  <link rel="stylesheet" href="styles.css?v=6" />
+  <script type="importmap">
+  {
+    "imports": {
+      "lit": "/vendor/lit/index.js",
+      "lit/": "/vendor/lit/",
+      "lit-html": "/vendor/lit-html/lit-html.js",
+      "lit-html/": "/vendor/lit-html/",
+      "lit-element": "/vendor/lit-element/lit-element.js",
+      "lit-element/": "/vendor/lit-element/",
+      "@lit/reactive-element": "/vendor/@lit/reactive-element/reactive-element.js",
+      "@lit/reactive-element/": "/vendor/@lit/reactive-element/",
+      "@lit-labs/ssr-dom-shim": "/vendor/@lit-labs/ssr-dom-shim/index.js",
+      "@lit-labs/ssr-dom-shim/": "/vendor/@lit-labs/ssr-dom-shim/",
+      "tslib": "/vendor/tslib/tslib.es6.js"
+    }
+  }
+  </script>
+
+  <script type="module" src="/vendor/material/button/filled-button.js"></script>
+  <script type="module" src="/vendor/material/button/outlined-button.js"></script>
+  <script type="module" src="/vendor/material/button/text-button.js"></script>
+  <script type="module" src="/vendor/material/textfield/outlined-text-field.js"></script>
+  <script type="module" src="/vendor/material/dialog/dialog.js"></script>
+  <script type="module" src="/vendor/material/slider/slider.js"></script>
+  <script type="module" src="/vendor/material/tabs/tabs.js"></script>
+  <script type="module" src="/vendor/material/tabs/primary-tab.js"></script>
+  <script type="module" src="/vendor/material/fab/fab.js"></script>
+  <script type="module" src="/vendor/material/progress/linear-progress.js"></script>
+  <script type="module" src="/vendor/material/radio/radio.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">✦</span>
+      <div>
+        <h1>Arcaea 存档工坊</h1>
+        <p class="subtitle">PTT 生成 · 存档编辑 · st3 导出</p>
+      </div>
+    </div>
+    <md-tabs id="main-tabs" aria-label="功能">
+      <md-primary-tab id="tab-btn-generate">生成存档</md-primary-tab>
+      <md-primary-tab id="tab-btn-edit">编辑存档</md-primary-tab>
+      <md-primary-tab id="tab-btn-about">说明</md-primary-tab>
+    </md-tabs>
+  </header>
+
+  <main>
+    <section class="panel hidden" id="panel-edit">
+      <div class="grid">
+        <div class="card upload-card">
+          <h2>导入存档</h2>
+          <p class="hint">选择游戏里的 st3 文件，解析后可直接修改每条成绩。</p>
+          <div class="dropzone" id="dropzone" role="button" tabindex="0">
+            <input type="file" id="file-input" class="file-hidden" />
+            <span class="drop-title">点击选择或拖入 st3</span>
+            <span class="drop-sub" id="file-label">未选择文件</span>
+          </div>
+          <div class="row gap">
+            <md-text-button id="btn-clear">清空当前成绩</md-text-button>
+          </div>
+        </div>
+
+        <div class="card guide-card" id="guide-card">
+          <h2>导入之后才需要编辑</h2>
+          <p class="hint">拖入或选择游戏里的 st3，这里会显示当前 PTT、Best50 / Best10 总和和 PM 数，下方表格可以逐条改成绩。</p>
+          <p class="hint">不想导入也行——直接去「生成存档」从 0 造一份，或者一键全理论 / 全空。</p>
+        </div>
+
+        <div class="card stats-card hidden" id="stats-card">
+          <h2>总览</h2>
+          <div class="ptt-big">
+            <span id="ptt-value">--</span>
+            <span class="ptt-label">PTT</span>
+          </div>
+          <div class="stat-row"><span>成绩数</span><b id="stat-count">0</b></div>
+          <div class="stat-row"><span>PM 数</span><b id="stat-pm">0</b></div>
+          <div class="stat-row"><span>Best50 总和</span><b id="stat-b50">0</b></div>
+          <div class="stat-row"><span>Best10 总和</span><b id="stat-b10">0</b></div>
+          <div class="row gap top-gap">
+            <md-filled-button id="btn-download">
+              导出 st3
+            </md-filled-button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card table-card hidden" id="edit-content-wrap">
+        <div class="table-head">
+          <h2>成绩列表</h2>
+          <div class="tools">
+            <md-outlined-text-field id="search" label="搜索曲名 / 曲师" clearable></md-outlined-text-field>
+            <md-outlined-text-field id="page-size" label="每页" type="number" value="100" min="20" step="20"></md-outlined-text-field>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="score-table">
+            <thead>
+              <tr>
+                <th>曲目</th><th>难度</th><th>定数</th><th>分数</th>
+                <th>PURE</th><th>SHINY</th><th>FAR</th><th>LOST</th>
+                <th>单曲 PTT</th><th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+          </table>
+        </div>
+        <div class="pager">
+          <md-text-button id="prev-page">上一页</md-text-button>
+          <span id="page-label">1 / 1</span>
+          <md-text-button id="next-page">下一页</md-text-button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-generate">
+      <div class="grid">
+        <div class="card">
+          <h2>生成模式</h2>
+          <div class="mode-list">
+            <label class="mode-option">
+              <md-radio name="mode" value="ptt" checked></md-radio>
+              <div>
+                <b>目标 PTT</b>
+                <span>按你指定的 PTT 构造一套像真人打出来的成绩</span>
+              </div>
+            </label>
+            <label class="mode-option">
+              <md-radio name="mode" value="theory"></md-radio>
+              <div>
+                <b>全理论</b>
+                <span>所有谱面全部 Pure Memory，物量全吃满</span>
+              </div>
+            </label>
+            <label class="mode-option">
+              <md-radio name="mode" value="empty"></md-radio>
+              <div>
+                <b>全空</b>
+                <span>没有任何成绩的空存档</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>参数</h2>
+          <div id="ptt-controls">
+            <div class="row between">
+              <span>目标 PTT</span>
+              <md-outlined-text-field id="target-ptt" type="number" step="0.001" value="12.000" label="PTT"></md-outlined-text-field>
+            </div>
+            <md-slider id="target-slider" min="0" max="13.4" step="0.01" value="12" labeled></md-slider>
+            <div class="row between top-gap">
+              <span>填充范围</span>
+              <div class="radio-inline">
+                <label><md-radio name="fill" value="all" checked></md-radio>全曲</label>
+                <label><md-radio name="fill" value="b50"></md-radio>仅 Best50</label>
+              </div>
+            </div>
+            <div class="row between top-gap">
+              <span>通关奖励</span>
+              <div class="radio-inline">
+                <label><md-radio name="bonus" value="0.2" checked></md-radio>0.2</label>
+                <label><md-radio name="bonus" value="0.15"></md-radio>0.15</label>
+              </div>
+            </div>
+            <div class="row between top-gap">
+              <span>随机种子</span>
+              <md-outlined-text-field id="seed" type="number" value="20261109"></md-outlined-text-field>
+            </div>
+          </div>
+          <div class="row gap top-gap">
+            <md-filled-button id="btn-generate">生成</md-filled-button>
+            <md-outlined-button id="btn-gen-download">导出生成结果</md-outlined-button>
+            <md-text-button id="btn-adopt">载入编辑器微调</md-text-button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card table-card">
+        <div class="table-head">
+          <h2>生成预览</h2>
+          <span class="hint" id="gen-hint">先生成再看这里</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>曲目</th><th>难度</th><th>定数</th><th>分数</th>
+                <th>PURE</th><th>SHINY</th><th>FAR</th><th>LOST</th><th>单曲 PTT</th>
+              </tr>
+            </thead>
+            <tbody id="gen-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel hidden" id="panel-about">
+      <div class="card prose">
+        <h2>它怎么算 PTT</h2>
+        <pre><code>score ≥ 10,000,000                 → 定数 + 2 + 奖励
+9,800,000 ≤ score &lt; 10,000,000     → 定数 + 1 + (score - 9,800,000) / 200,000 + 奖励
+score &lt; 9,800,000                  → max(0, 定数 + (score - 9,500,000) / 300,000 + 奖励)
+
+PTT = (Best50 总和 + Best10 总和) / 60</code></pre>
+        <p>Best50 是历史最高的 50 个单曲潜力值，前 10 个再计一遍（双倍权重）。奖励默认按 0.2 计算，和社区资料一致。</p>
+        <h2>生成器做了什么</h2>
+        <p>给定目标 PTT 后，程序先按「前 10 名比其余高一点」的形状构造 Best50，再用二分把整体 PTT 校准到目标值；随后把每条目标潜力值反推成自洽的分数与 PURE / SHINY / FAR / LOST 计数，最后给其余谱面填充不会挤进 Best50 的历史成绩。</p>
+        <h2>数据来源</h2>
+        <p>曲目表、物量、定数来自社区维护的 Arcaea 数据（songlist 7.1.0）。导出的 st3 结构与游戏内 SQLite 存档一致。</p>
+        <h2>注意</h2>
+        <p>导出的存档仅用于本地游玩或研究，上传服务器可能被判定异常。使用前记得备份原档。</p>
+      </div>
+    </section>
+  </main>
+
+  <md-fab id="fab-download" label="导出" size="large" class="fab">
+    <span slot="icon">⤓</span>
+  </md-fab>
+
+  <md-dialog id="edit-dialog">
+    <span slot="headline">编辑成绩</span>
+    <div slot="content" class="dialog-body">
+      <p id="edit-title" class="dialog-title"></p>
+      <div class="grid2">
+        <md-outlined-text-field id="edit-score" label="分数" type="number"></md-outlined-text-field>
+        <md-outlined-text-field id="edit-pure" label="PURE" type="number"></md-outlined-text-field>
+        <md-outlined-text-field id="edit-shiny" label="SHINY (critical)" type="number"></md-outlined-text-field>
+        <md-outlined-text-field id="edit-far" label="FAR" type="number"></md-outlined-text-field>
+        <md-outlined-text-field id="edit-lost" label="LOST" type="number"></md-outlined-text-field>
+        <div class="clear-row">
+          <span class="clear-label">通关状态</span>
+          <div class="clear-options">
+            <label><md-radio name="clear" value="0"></md-radio>TL</label>
+            <label><md-radio name="clear" value="1"></md-radio>Normal</label>
+            <label><md-radio name="clear" value="2"></md-radio>FR</label>
+            <label><md-radio name="clear" value="3"></md-radio>PM</label>
+            <label><md-radio name="clear" value="4"></md-radio>Easy</label>
+            <label><md-radio name="clear" value="5"></md-radio>Hard</label>
+          </div>
+        </div>
+      </div>
+      <p class="hint" id="edit-potential"></p>
+    </div>
+    <div slot="actions">
+      <md-text-button id="edit-cancel">取消</md-text-button>
+      <md-filled-button id="edit-save">保存</md-filled-button>
+    </div>
+  </md-dialog>
+
+  <div id="toast" class="toast" hidden></div>
+  <script type="module" src="app.js?v=9"></script>
+</body>
+</html>

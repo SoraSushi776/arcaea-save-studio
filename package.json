@@ -1,0 +1,20 @@
+{
+  "name": "arcaea-save-studio",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Arcaea 存档工坊：PTT 生成器与存档修改器",
+  "main": "server/index.js",
+  "scripts": {
+    "sync": "node scripts/sync-vendor.mjs",
+    "prestart": "node scripts/sync-vendor.mjs",
+    "predev": "node scripts/sync-vendor.mjs",
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "dependencies": {
+    "@material/web": "^2.4.0",
+    "express": "^4.21.2",
+    "sql.js": "^1.13.0"
+  }
+}
